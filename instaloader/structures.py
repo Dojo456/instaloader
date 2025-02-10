@@ -1254,12 +1254,30 @@ class Profile:
 
         """
         self._obtain_metadata()
+
+        def node_wrapper(n):
+            media = n["media"]
+
+            media["view_count"] = media["play_count"]
+            media["taken_at"] = datetime.now().timestamp()
+            media["has_liked"] = False
+            media["accessibility_caption"] = ""
+
+            media["user"] = media["user"] | {
+                "username": self.username,
+                "is_private": self.is_private,
+                "full_name": self.full_name,
+                "profile_pic_url": self.profile_pic_url,
+            }
+
+            return Post.from_iphone_struct(self._context, media)
+
         return NodeIterator(
             context = self._context,
             edge_extractor = lambda d: d['data']['xdt_api__v1__clips__user__connection_v2'],
             # Reels post info is incomplete relative to regular posts so we create a Post from the shortcode
             # and fetch the additional metadata with an additional API request per Reel
-            node_wrapper = lambda n: Post.from_shortcode(context=self._context, shortcode=n["media"]["code"]),
+            node_wrapper = node_wrapper,
             query_variables = {'data': {
                 'page_size': 12, 'include_feed_video': True, "target_user_id": str(self.userid)}},
             query_referer = 'https://www.instagram.com/{0}/'.format(self.username),
